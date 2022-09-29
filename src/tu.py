@@ -33,7 +33,7 @@ class NormalizedDegree(object):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', type=str, default='MUTAG', choices=["IMDB-BINARY","IMDB-MULTI","NCI1","PROTEINS","PTC_MR","MUTAG"])
+    parser.add_argument('--dataset', type=str, default='IMDB-BINARY', choices=["IMDB-BINARY","IMDB-MULTI","NCI1","PROTEINS","PTC_MR","MUTAG"])
     parser.add_argument('--d', type=int, default=2,
                         help='distance of neighbourhood (default: 1)')
     parser.add_argument('--t', type=int, default=2,
