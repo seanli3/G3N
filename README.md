@@ -26,13 +26,6 @@ python3 iso.py --dataset csl --t <t> --d <d>
 ```
 where d and t are parameters of G3N denoting neighbourhood size and neighbourhood subgraph dimension.
 
-For classification versions of isomorphism tasks, run 
-```
-python3 iso.py --dataset exp_classify --t <t> --d <d>
-python3 iso.py --dataset sr25_classify --t <t> --d <d>
-python3 iso.py --dataset csl_classify --t <t> --d <d>
-```
-
 For substructure counting tasks run 
 ```
 python3 counting.py --ntask <n_task> --t <t> --d <d>
@@ -47,7 +40,7 @@ python3 grid_tu.py --t 2 --d 1
 
 For graph classification on MolHIV, run
 ```
-python3 grid_tu.py --t 3 --d 3
+python3 mol.py --t 3 --d 3
 ```
 
 For graph regression on ZINC, run 
