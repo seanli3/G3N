@@ -38,21 +38,20 @@ def run(args, device, train_loader, tol):
       embeddings=[]
       model.eval()  # no learning
       for batch in train_loader:
-          pairs, degrees, scatter = batch.pair_info[0]
-          for key in pairs:
-              degrees[key] = degrees[key].to(device)
-              scatter[key] = scatter[key].to(device)
-          
           if batch.x == None:
-            x = torch.zeros((batch.num_nodes, 1)).to(device)
+              x = torch.zeros((batch.num_nodes, 1)).to(device)
           else:
-            x = batch.x.float().to(device)
+              x = batch.x.float().to(device)
           edge_index = batch.edge_index.to(device)
           batch_idx = batch.batch.to(device)
-          pred = model(x, edge_index,(pairs, degrees, scatter), batch_idx)
+          pred = model(x, edge_index, batch.pair_info[0], batch_idx)
           embeddings.append(pred)
 
       E = torch.cat(embeddings).cpu().detach().numpy()
-      M = M + 1 * (np.abs(E[0::2] - E[1::2]).sum(1) > 0.001)
-      sm = (M == 0).sum()
-      print('iter', iter, 'similar:',sm)
+      if args.dataset in ['exp']:
+          M += (np.abs(E[0::2] - E[1::2]).sum(1) > tol)
+          sm = (M == 0).sum()
+      else:
+          M += (np.abs(np.expand_dims(E, 1) - np.expand_dims(E, 0))).sum(2) > tol
+          sm = ((M == 0).sum() - M.shape[0]) / 2
+      print('iter', iter, 'similar:', sm)

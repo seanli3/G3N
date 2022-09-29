@@ -37,12 +37,12 @@ def main():
 
     dataset_name = args.dataset
     if dataset_name == "exp":
-        dataset = util.PlanarSATPairsDataset(root="dataset/EXP/")
+        transform = util.SpectralDesign(nmax=0, recfield=1, dv=2, nfreq=5, adddegree=True)
+        dataset = util.PlanarSATPairsDataset(root="dataset/EXP/", pre_transform=transform)
         train_loader = []
-        #
         for batch in tqdm(DataLoader(dataset, batch_size=100, shuffle=False)):
             train_loader.append(subgraph.transform(batch, args.d, args.t, args.connected))
-        train_loader = DataLoader(train_loader, batch_size=1, shuffle=True)
+        train_loader = DataLoader(train_loader, batch_size=1, shuffle=False)
     elif dataset_name == "csl":
         dataset = GNNBenchmarkDataset(root='dataset/CSL', name='CSL')
         added = [False for _ in range(15)]
@@ -55,19 +55,21 @@ def main():
         train_loader = []
         for batch in tqdm(DataLoader(trainset, batch_size=100, shuffle=False)):
             train_loader.append(subgraph.transform(batch, args.d, args.t, args.connected))
-        train_loader = DataLoader(train_loader, batch_size=1, shuffle=True)
+        train_loader = DataLoader(train_loader, batch_size=1, shuffle=False)
     elif dataset_name == "graph8c":
-        dataset = util.Grapg8cDataset(root="dataset/graph8c/")
+        transform = util.SpectralDesign(nmax=0, recfield=1, dv=2, nfreq=5, adddegree=True)
+        dataset = util.Grapg8cDataset(root="dataset/graph8c/", pre_transform=transform)
         train_loader = []
         for batch in tqdm(DataLoader(dataset, batch_size=100, shuffle=False)):
             train_loader.append(subgraph.transform(batch, args.d, args.t, args.connected))
-        train_loader = DataLoader(train_loader, batch_size=1, shuffle=True)
+        train_loader = DataLoader(train_loader, batch_size=1, shuffle=False)
     elif dataset_name == "sr25":
-        dataset = util.SRDataset(root="dataset/sr25/")
+        transform = util.SpectralDesign(nmax=0, recfield=1, dv=2, nfreq=5, adddegree=True)
+        dataset = util.SRDataset(root="dataset/sr25/", pre_transform=transform)
         train_loader = []
         for batch in tqdm(DataLoader(dataset, batch_size=100, shuffle=False)):
             train_loader.append(subgraph.transform(batch, args.d, args.t, args.connected))
-        train_loader = DataLoader(train_loader, batch_size=1, shuffle=True)
+        train_loader = DataLoader(train_loader, batch_size=1, shuffle=False)
 
     run(args, device, train_loader, tol=0.001)
 

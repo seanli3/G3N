@@ -52,10 +52,7 @@ class GNNLayer(nn.Module):
                 continue
 
             k = str(key)
-
-            # FIXME (Sean): Subgraph pooling and isomorphism type aggregation are mixed together,
-            #  k (key) is the tuple of hop numbers, used to identify subgraphs? iso_type?
-            #  A linear transformation is applied on the node features grouped by the key
+            
             if self.combination == "multi":  # s(h_x @ W) * s(h_y @ W)
                 h_temp = 1
                 for i in range(self.t):

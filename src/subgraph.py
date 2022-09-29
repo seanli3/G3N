@@ -13,6 +13,17 @@ def one_hot_length(t, get_deg=False):
     else:
         return max_deg + iso_type
 
+def get_avg_diameter(graph_collections):
+    diameters = []
+    for graphs in graph_collections:
+        for graph in graphs:
+            G = to_networkx(graph).to_undirected()
+            for g in nx.connected_components(G):  # usually batched graphs
+                diameters.append(nx.diameter(G.subgraph(g)))
+    avg_diam = np.mean(diameters)
+    print('average graph diameter:', avg_diam)
+    return avg_diam
+
 def get_keys_from_loaders(loaders):
     keys = set()
     for loader in loaders:
@@ -38,6 +49,10 @@ def knbrs(G_in, start, k):  # get k-hop neighbourhood
 
 def induced_degree(u, G, subgraph_nodes):
     ret = len(subgraph_nodes.intersection(set(G[u])))
+    return ret
+
+def original_degree(u, G):
+    ret = len(set(G[u]))
     return ret
 
 def compute_nhbr_pair_data(G, d, t, require_connected):
@@ -67,11 +82,8 @@ def compute_nhbr_pair_data(G, d, t, require_connected):
                 u, v, w = comb
                 edges = int((u, v) in G.edges) + int((u, w) in G.edges) + int((w, v) in G.edges)
                 is_connected = edges >= 2
-                # FIXME (Asiri): isomorphism type shouldn't be computed using edges/2, consider using nauty to generate
-                #  iso type signature
                 iso_type = edges % 2
             else:
-                # FIXME: implement t > 3
                 raise NotImplementedError
 
             if require_connected and not is_connected:
@@ -97,12 +109,11 @@ def compute_nhbr_pair_data(G, d, t, require_connected):
                 if t==3:
                     one_hot_deg[max_deg + iso_type] = 1
                 pairs[key][i].append(u)
-                # FIXME: induced degree as positional encoding, considering using num of hops
                 degrees[key][i].append(one_hot_deg)
             scatter[key].append(node)
     for key in pairs:
-        pairs[key] = torch.tensor(pairs[key])
-        degrees[key] = torch.tensor(degrees[key])
-        scatter[key] = torch.tensor(scatter[key])
+        pairs[key] = torch.tensor(pairs[key]).to('cuda')
+        degrees[key] = torch.tensor(degrees[key]).to('cuda')
+        scatter[key] = torch.tensor(scatter[key]).to('cuda')
     nhbr_info = (pairs, degrees, scatter)
     return nhbr_info
