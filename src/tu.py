@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import torch_geometric.transforms as T
-from sklearn.model_selection import KFold
+from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import train_test_split
 from torch_geometric.loader import DataLoader
 from torch_geometric.datasets import TUDataset
@@ -33,8 +33,8 @@ class NormalizedDegree(object):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', type=str, default='IMDB-BINARY', choices=["IMDB-BINARY","IMDB-MULTI","NCI1","PROTEINS","PTC_MR","MUTAG"])
-    parser.add_argument('--d', type=int, default=1,
+    parser.add_argument('--dataset', type=str, default='MUTAG', choices=["IMDB-BINARY","IMDB-MULTI","NCI1","PROTEINS","PTC_MR","MUTAG"])
+    parser.add_argument('--d', type=int, default=2,
                         help='distance of neighbourhood (default: 1)')
     parser.add_argument('--t', type=int, default=2,
                         help='size of t-subsets (default: 2)')
@@ -47,9 +47,9 @@ def main():
                         help="mlp (default: False)")
     parser.add_argument('--jk', type=bool, default=True,
                         help="jk")
-    parser.add_argument('--drop_ratio', type=float, default=0.5,
+    parser.add_argument('--drop_ratio', type=float, default=0.1,
                         help='dropout ratio')
-    parser.add_argument('--num_layer', type=int, default=4,
+    parser.add_argument('--num_layer', type=int, default=2,
                         help='number of GNN message passing layers')
     parser.add_argument('--emb_dim', type=int, default=128,
                         help='dimensionality of hidden units in GNNs')
@@ -58,31 +58,41 @@ def main():
     parser.add_argument('--readout', type=str, default="sum", choices=["sum", "mean"],
                         help='readout')
 
-    parser.add_argument('--batch_size', type=int, default=128,
+    parser.add_argument('--batch_size', type=int, default=64,
                         help='input batch size for training')
-    parser.add_argument('--lr', type=float, default=0.01,
+    parser.add_argument('--lr', type=float, default=0.001,
                         help='initial lr')
     parser.add_argument('--step', type=int, default=50,
                         help='lr decrease steps')
-    parser.add_argument('--epochs', type=int, default=350,
+    parser.add_argument('--epochs', type=int, default=200,
                         help='number of epochs to train')
     parser.add_argument('--device', type=int, default=0,
                         help='which gpu to use if any (default: 0)')
+    parser.add_argument('--seed', type=int, default=0, help='Random seed.')
     parser.add_argument('--print_params', type=bool, default=False,
                         help='print number of parameters')
     args = parser.parse_args()
 
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.device)  
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.device)
+
+    #set up seeds and gpu device
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
+
     if torch.cuda.is_available():
         print('cuda available with GPU:',torch.cuda.get_device_name(0))
+
     device = torch.device(f"cuda:{args.device}") if torch.cuda.is_available() else torch.device("cpu")
+
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(args.seed)
 
     # Download dataset.
     ds_name = args.dataset
-    get_dataset(ds_name)
-    path = osp.join(osp.dirname(osp.realpath(__file__)), 'data', ds_name)
-    dataset = TUDataset(path, name=ds_name).shuffle()
+    dir_path = os.path.dirname(os.path.realpath('__file__'))
+    path = os.path.join(dir_path, 'data', ds_name)
+    dataset = TUDataset(path, name=ds_name)
 
 
     # One-hot degree if node labels are not available.
@@ -108,26 +118,21 @@ def main():
         nfeat = dataset.data.x.shape[1]
     nclass = max(dataset.data.y) + 1
 
-    # Set device.
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=args.seed)
 
-    kf = KFold(n_splits=10, shuffle=True)
-    dataset.shuffle()
     val_curves=[]
     test_curves=[]
-    for train_index, _ in kf.split(list(range(len(dataset)))):
-        # Sample 10% split from training split for validation.
-        train_index, val_index = train_test_split(train_index, test_size=0.1)
-
+    for train_idxs, val_idxs in skf.split(dataset, dataset.data.y):
         # Split data... following GIN and CIN, only look at validation accuracy
-        train_dataset = dataset[train_index.tolist()]
-        val_dataset = dataset[val_index.tolist()]
+        train_dataset = dataset[train_idxs]
+        val_dataset = dataset[val_idxs]
 
         # Prepare batching.
         # print('Computing pair infomation...', end=" ")
         time_t = time.time()
         train_loader = []
         valid_loader = []
+
         for batch in DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True):
             if dataset.data.x is None:
                 batch = dataset.transform(batch)
@@ -141,21 +146,21 @@ def main():
         # print('Pair infomation computed! Time:', time.time() - time_t)
 
         params = {
-            'nfeat':nfeat,
-            'nhid':args.emb_dim, 
-            'nclass':nclass,
-            'nlayers':args.num_layer,
-            'dropout':args.drop_ratio,
-            'readout':args.readout,
-            'd':args.d,
-            't':args.t, 
-            'scalar':args.scalar,  
-            'mlp':args.mlp, 
-            'jk':args.jk, 
-            'combination':args.combination,
-            'keys':subgraph.get_keys_from_loaders([train_loader, valid_loader]),
-            'tu':True,
-        }
+                'nfeat':nfeat,
+                'nhid':args.emb_dim, 
+                'nclass':nclass,
+                'nlayers':args.num_layer,
+                'dropout':args.drop_ratio,
+                'readout':args.readout,
+                'd':args.d,
+                't':args.t, 
+                'scalar':args.scalar,  
+                'mlp':args.mlp, 
+                'jk':args.jk, 
+                'combination':args.combination,
+                'keys':subgraph.get_keys_from_loaders([train_loader, valid_loader]),
+                'tu':True,
+            }
 
         # Setup model.
         model = models.GNN_bench(params).to(device)
