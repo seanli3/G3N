@@ -3,6 +3,7 @@ import networkx as nx
 import itertools
 from tqdm import tqdm
 from torch_geometric.utils import to_networkx
+from pynauty import *
 import numpy as np
 
 def one_hot_length(t, get_deg=False):
@@ -84,7 +85,22 @@ def compute_nhbr_pair_data(G, d, t, require_connected):
                 is_connected = edges >= 2
                 iso_type = edges % 2
             else:
-                raise NotImplementedError
+                # obtain induced subgraph
+                sg = nx.induced_subgraph(G, comb)
+                # construct a pynauty subgraph
+                pynauty_subgraph = Graph(len(comb))
+                # edge list for an induced subgraph
+                edge_list = sg.edges(list(comb))
+                # reassign the node ids in induced subgraph to add edges in pynauty subgraph
+                dict_keys = {}
+                for key, value in enumerate(comb):
+                    dict_keys[value] = key
+                # add edges into a pynauty graph
+                for edge_data in edge_list:
+                    pynauty_subgraph.connect_vertex(dict_keys[edge_data[0]], [dict_keys[edge_data[1]]])
+                # subgraph signature by canonical label certificate
+                iso_type = hash(int.from_bytes(certificate(pynauty_subgraph), byteorder='big'))
+
 
             if require_connected and not is_connected:
                 continue
