@@ -61,6 +61,7 @@ def compute_nhbr_pair_data(G, d, t, require_connected):
     pairs = {}
     degrees = {}
     scatter = {}
+    iso_hash = {}
     distances = dict(nx.all_pairs_shortest_path_length(G))
 
     one_hot_len, max_deg = one_hot_length(t, get_deg=True)
@@ -109,7 +110,7 @@ def compute_nhbr_pair_data(G, d, t, require_connected):
 
             if require_connected and not is_connected:
                 continue
-
+            
             tuple_list = sorted([(distances[node][u], u) for u in comb], key=lambda x: x[0])
 
             key = [x[0] for x in tuple_list]
@@ -132,8 +133,8 @@ def compute_nhbr_pair_data(G, d, t, require_connected):
                 degrees[key][i].append(one_hot_deg)
             scatter[key].append(node)
     for key in pairs:
-        pairs[key] = torch.tensor(pairs[key]).to('cuda')
-        degrees[key] = torch.tensor(degrees[key]).to('cuda')
-        scatter[key] = torch.tensor(scatter[key]).to('cuda')
+        pairs[key] = torch.tensor(pairs[key])
+        degrees[key] = torch.tensor(degrees[key])
+        scatter[key] = torch.tensor(scatter[key])
     nhbr_info = (pairs, degrees, scatter)
     return nhbr_info
